@@ -6,7 +6,4 @@ services:
     buildCommand: ./mvnw clean package -DskipTests
     startCommand: java -jar target/FoodHKD-0.0.1-SNAPSHOT.jar
     envVars:
-      SPRING_PROFILES_ACTIVE: prod
-      DATABASE_URL: jdbc:sqlserver://localhost:1433;databaseName=FOODTEAM;encrypt=true;trustServerCertificate=true
-      DATABASE_USERNAME: sa
-      DATABASE_PASSWORD: 123456
+      SPRING_PROFILES_ACTIVE: h2

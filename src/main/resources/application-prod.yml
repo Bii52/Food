@@ -23,6 +23,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.SQLServerDialect
+    defer-datasource-initialization: true
   
   messages:
     basename: messages
@@ -31,3 +32,9 @@ spring:
 logging:
   level:
     org.springframework.web: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
