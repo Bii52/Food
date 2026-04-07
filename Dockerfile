@@ -1,10 +1,13 @@
-FROM eclipse-temurin:17-jre-slim
+# Build stage
+FROM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /app
 COPY . .
-RUN apt-get update && apt-get install -y dos2unix
-RUN dos2unix ./mvnw || true
-RUN chmod +x ./mvnw
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests
+
+# Runtime stage
+FROM eclipse-temurin:17-alpine
+WORKDIR /app
+COPY --from=builder /app/target/FoodHKD-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8080
 ENV SPRING_PROFILES_ACTIVE=prod
-CMD ["java", "-jar", "target/FoodHKD-0.0.1-SNAPSHOT.jar"]
+CMD ["java", "-jar", "app.jar"]
