@@ -1,0 +1,9 @@
+services:
+  web:
+    type: web
+    language: java
+    javaVersion: "17"
+    buildCommand: ./mvnw clean package -DskipTests
+    startCommand: java -jar target/FoodHKD-0.0.1-SNAPSHOT.jar
+    envVars:
+      SPRING_PROFILES_ACTIVE: prod
