@@ -1,8 +1,6 @@
 services:
-  web:
-    type: web
-    language: docker
-    region: oregon
-    envVars:
-      - key: SPRING_PROFILES_ACTIVE
-        value: h2
+- type: web
+  staticSite: true
+  buildCommand: echo "No build needed"
+  publishDir: public
+  region: oregon
