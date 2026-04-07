@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" th:href="@{/css/admin.css}"/>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.9.0/axios.min.js"
+            integrity="sha512-FPlUpimug7gt7Hn7swE8N2pHw/+oQMq/+R/hH/2hZ43VOQ+Kjh25rQzuLyPz7aUWKlRpI7wXbY6+U3oFPGjPOA=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css"
+          rel="stylesheet" integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT"
+          crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO"
+            crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script>
+        // Gắn interceptor toàn cục
+        axios.interceptors.request.use(
+          function (config) {
+            const token = localStorage.getItem("authToken");
+            if (token) {
+              config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+          },
+          function (error) {
+            return Promise.reject(error);
+          }
+        );
+      </script>
+    <style>
+    
+    </style>
+</head>
+
+<body>
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2><i class="bi bi-shield-check"></i> ADMIN</h2>
+    </div>
+    <nav class="sidebar-nav">
+        <ul>
+            <li><a th:href="@{/admin}"><i class="bi bi-speedometer2"></i>Dashboard</a></li>
+            <li><a th:href="@{/admin/foods}"><i class="bi bi-cup-hot"></i>Quản lý sản phẩm</a></li>
+            <li><a th:href="@{/admin/tables}"><i class="bi bi-table"></i>Quản lý bàn</a></li>
+            <li><a th:href="@{/admin/users}"><i class="bi bi-people"></i>Quản lý nhân viên</a></li>
+            <li><a th:href="@{/admin/orders}" class="active"><i class="bi bi-receipt"></i>Quản lý hoá đơn</a></li>
+            <li>
+                <a th:href="@{/admin/reports}" >
+                  <i class="fas fa-chart-bar"></i>Báo cáo kinh doanh
+                </a>
+              </li>
+        </ul>
+    </nav>
+</div>
+
+<div class="main-content" x-data="orderManagement()">
+    <nav class="top-navbar">
+        <h1 class="page-title"><i class="bi bi-receipt me-2"></i>Quản Lý Hóa Đơn</h1>
+        <div class="user-actions">
+            <div class="user-info">
+                <i class="bi bi-person-circle"></i>
+                <span th:text="${loggedInUser}">Admin</span>
+            </div>
+            <form th:action="@{/logout}" method="post" class="d-inline">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-box-arrow-right me-1"></i>Đăng xuất
+                </button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="content-wrapper">
+        <div class="alert alert-dismissible fade show"
+             :class="alertMessage.type === 'success' ? 'alert-success' : 'alert-danger'"
+             x-show="alertMessage.show" x-transition>
+            <i class="bi" :class="alertMessage.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'"></i>
+            <span x-text="alertMessage.text"></span>
+            <button type="button" class="btn-close" @click="alertMessage.show = false"></button>
+        </div>
+
+        <div class="row stats-row">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon primary">
+                        <i class="bi bi-receipt-cutoff"></i>
+                    </div>
+                    <h5 class="text-muted">Tổng hóa đơn</h5>
+                    <h2 class="mb-0" x-text="orders.length">0</h2>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon success">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <h5 class="text-muted">Đã hoàn thành</h5>
+                    <h2 class="mb-0" x-text="orders.filter(o => o.status === 'SERVED').length">0</h2>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon warning">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <h5 class="text-muted">Đang xử lý</h5>
+                    <h2 class="mb-0"
+                        x-text="orders.filter(o => ['PENDING', 'PREPARING', 'READY'].includes(o.status)).length">0</h2>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon info">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <h5 class="text-muted">Doanh thu</h5>
+                    <h2 class="mb-0" x-text="formatCurrency(orders.reduce((sum, o) => sum + (o.total || 0), 0))">0
+                        đ</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-card">
+            <div class="card-header-custom">
+                <h3><i class="bi bi-list-ul me-2"></i>Danh sách Hóa đơn</h3>
+                <button class="btn btn-light btn-sm" @click="loadOrders()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Làm mới
+                </button>
+            </div>
+
+            <div x-show="loading" class="loading-container">
+                <div class="loading-spinner"></div>
+                <h5>Đang tải dữ liệu...</h5>
+                <p class="text-muted">Vui lòng chờ trong giây lát</p>
+            </div>
+
+            <div x-show="error" class="alert alert-danger m-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <span x-text="error"></span>
+            </div>
+
+            <div x-show="!loading && !error" class="table-container">
+                <table class="table table-custom">
+                    <thead>
+                    <tr>
+                        <th><i class="bi bi-hash me-1"></i>ID</th>
+                        <th><i class="bi bi-person me-1"></i>Khách hàng</th>
+                        <th><i class="bi bi-calendar me-1"></i>Ngày tạo</th>
+                        <th><i class="bi bi-table me-1"></i>Bàn</th>
+                        <th><i class="bi bi-person-badge me-1"></i>Nhân viên</th>
+                        <th><i class="bi bi-flag me-1"></i>Trạng thái</th>
+                        <th><i class="bi bi-currency-dollar me-1"></i>Tổng tiền</th>
+                        <th><i class="bi bi-gear me-1"></i>Tác Vụ</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <template x-for="order in filteredOrders" :key="order.orderID">
+                        <tr>
+                            <td>
+                                <span class="badge bg-secondary">#<span x-text="order.orderID"></span></span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-person-circle me-2 text-muted"></i>
+                                    <span x-text="order.fullName || 'N/A'"></span>
+                                </div>
+                            </td>
+                            <td x-text="formatDateTime(order.createdAt)"></td>
+                            <td>
+                                <span class="badge bg-info" x-text="order.table?.tableNumber || 'N/A'"></span>
+                            </td>
+                            <td x-text="order.createdBy?.fullName || 'N/A'"></td>
+                            <td>
+                                        <span class="status-badge"
+                                              :class="`status-${(order.status || 'pending').toLowerCase()}`">
+                                            <i class="bi" :class="getStatusIcon(order.status)"></i>
+                                            <span x-text="order.status"></span>
+                                        </span>
+                            </td>
+                            <td>
+                                <strong x-text="formatCurrency(order.total)"></strong>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn-action btn-view " style="width: 80px" @click="viewOrderDetails(order.orderID)">
+                                        <i class="bi bi-eye"></i>
+                                        <span>Xem</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                    </tbody>
+                </table>
+
+                <div x-show="filteredOrders.length === 0" class="empty-state">
+                    <i class="bi bi-receipt"></i>
+                    <h4>Không có hóa đơn nào</h4>
+                    <p class="text-muted">Chưa có hóa đơn nào được tạo trong hệ thống.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" x-show="showDetailsModal" x-transition
+         @click.self="closeDetailsModal()" style="display: none;">
+        <div class="modal-content" @click.stop>
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-receipt-cutoff me-2"></i>
+                    Chi tiết hóa đơn #<span x-text="selectedOrder?.orderID"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" @click="closeDetailsModal()">×</button>
+            </div>
+            <div class="modal-body p-4" x-show="selectedOrder">
+                <div class="order-info-card">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <span class="info-label"><i class="bi bi-person me-2"></i>Khách hàng:</span>
+                                <span x-text="selectedOrder?.fullName || 'N/A'"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label"><i class="bi bi-telephone me-2"></i>SĐT:</span>
+                                <span x-text="selectedOrder?.phone || 'N/A'"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label"><i class="bi bi-table me-2"></i>Bàn:</span>
+                                <span class="badge bg-info" x-text="selectedOrder?.table?.tableNumber || 'N/A'"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <span class="info-label"><i class="bi bi-person-badge me-2"></i>Nhân viên:</span>
+                                <span x-text="selectedOrder?.createdBy?.fullName || 'N/A'"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label"><i class="bi bi-clock me-2"></i>Thời gian:</span>
+                                <span x-text="formatDateTime(selectedOrder?.createdAt)"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label"><i class="bi bi-flag me-2"></i>Trạng thái:</span>
+                                <span class="status-badge"
+                                      :class="`status-${(selectedOrder?.status || 'pending').toLowerCase()}`">
+                                            <i class="bi" :class="getStatusIcon(selectedOrder?.status)"></i>
+                                            <span x-text="selectedOrder?.status"></span>
+                                        </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table order-details-table">
+                        <thead class="table-dark">
+                        <tr>
+                            <th><i class="bi bi-cup-hot me-2"></i>Tên món</th>
+                            <th><i class="bi bi-123 me-2"></i>Số lượng</th>
+                            <th><i class="bi bi-tag me-2"></i>Đơn giá</th>
+                            <th><i class="bi bi-calculator me-2"></i>Thành tiền</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <template x-for="item in orderDetails" :key="item.orderDetailID">
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-cup-hot me-2 text-primary"></i>
+                                        <span x-text="item.foodItem?.name || 'N/A'"></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary" x-text="item.quantity"></span>
+                                </td>
+                                <td x-text="formatCurrency(item.priceAtOrderTime)"></td>
+                                <td>
+                                    <strong x-text="formatCurrency(item.priceAtOrderTime * item.quantity)"></strong>
+                                </td>
+                            </tr>
+                        </template>
+                        </tbody>
+                        <tfoot class="total-row">
+                        <tr>
+                            <th colspan="3">
+                                <i class="bi bi-calculator me-2"></i>TỔNG TIỀN:
+                            </th>
+                            <th>
+                                <span x-text="formatCurrency(calculateTotal(orderDetails))"></span>
+                            </th>
+                        </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @click="closeDetailsModal()">
+                    <i class="bi bi-x-circle me-1"></i>Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+    function orderManagement() {
+        return {
+            orders: [],
+            filteredOrders: [],
+            availableStatuses: [],
+            loading: true,
+            error: null,
+            selectedStatus: "",
+            showDetailsModal: false,
+            selectedOrder: null,
+            orderDetails: [],
+            newStatus: "",
+            updatingStatus: false,
+            alertMessage: {
+                show: false,
+                type: "",
+                text: "",
+            },
+
+            async init() {
+                await Promise.all([this.loadOrders(), this.loadStatuses()]);
+            },
+
+            async loadOrders() {
+                try {
+                    this.loading = true;
+                    this.error = null;
+                    const response = await axios.get("/api/admin/orders");
+                    if (response.data.success) {
+                        this.orders = response.data.data;
+                        this.filteredOrders = [...this.orders];
+                    } else {
+                        this.error = response.data.message || "Không thể tải danh sách hóa đơn";
+                    }
+                } catch (error) {
+                    console.error("Error loading orders:", error);
+                    this.error = "Lỗi kết nối. Vui lòng thử lại sau.";
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async loadStatuses() {
+                try {
+                    const response = await axios.get("/api/admin/orders/statuses");
+                    if (response.data.success) {
+                        this.availableStatuses = response.data.data;
+                    }
+                } catch (error) {
+                    console.error("Error loading statuses:", error);
+                }
+            },
+
+            async viewOrderDetails(orderId) {
+                try {
+                    const response = await axios.get(`/api/admin/orders/${orderId}/details`);
+                    if (response.data.success) {
+                        this.selectedOrder = response.data.data.order;
+                        this.orderDetails = response.data.data.orderDetails;
+                        this.newStatus = this.selectedOrder.status;
+                        this.showDetailsModal = true;
+                    } else {
+                        this.showAlert("error", "Không thể tải chi tiết hóa đơn");
+                    }
+                } catch (error) {
+                    console.error("Error loading order details:", error);
+                    this.showAlert("error", "Lỗi kết nối. Vui lòng thử lại sau.");
+                }
+            },
+
+            closeDetailsModal() {
+                this.showDetailsModal = false;
+                this.selectedOrder = null;
+                this.orderDetails = [];
+                this.newStatus = "";
+            },
+
+            getStatusIcon(status) {
+                const icons = {
+                    'PENDING': 'bi-clock-history',
+                    'PREPARING': 'bi-gear-fill',
+                    'READY': 'bi-check-circle-fill',
+                    'SERVED': 'bi-check2-all',
+                    'CANCELLED': 'bi-x-circle-fill'
+                };
+                return icons[status] || 'bi-question-circle';
+            },
+
+            formatDateTime(dateTime) {
+                if (!dateTime) return "N/A";
+                try {
+                    const date = new Date(dateTime);
+                    return date.toLocaleString("vi-VN", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                    });
+                } catch (error) {
+                    return dateTime;
+                }
+            },
+
+            calculateTotal(orderDetails) {
+                return orderDetails.reduce((total, item) => {
+                    return total + (item.priceAtOrderTime * item.quantity);
+                }, 0);
+            },
+
+            formatCurrency(amount) {
+                if (amount == null) return "0 đ";
+                try {
+                    return new Intl.NumberFormat("vi-VN").format(amount) + " đ";
+                } catch (error) {
+                    return amount + " đ";
+                }
+            },
+
+            showAlert(type, text) {
+                this.alertMessage = {
+                    show: true,
+                    type: type,
+                    text: text,
+                };
+                setTimeout(() => {
+                    this.alertMessage.show = false;
+                }, 5000);
+            },
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
+</body>
+</html>

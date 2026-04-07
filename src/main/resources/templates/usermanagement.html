@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Quản Lý Nhân Viên - Admin Dashboard</title>
+    <link rel="stylesheet" th:href="@{/css/admin.css}" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.9.0/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Gắn interceptor toàn cục
+      axios.interceptors.request.use(
+        function (config) {
+          const token = localStorage.getItem("authToken");
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+          return config;
+        },
+        function (error) {
+          return Promise.reject(error);
+        }
+      );
+    </script>
+    <style>
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1050;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal-content-custom {
+        background-color: #fff;
+        border-radius: 12px;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        padding: 0;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow: hidden;
+      }
+
+      .modal-header-custom {
+        background: linear-gradient(135deg, #2c3e50, #34495e);
+        color: white;
+        padding: 1.5rem 2rem;
+        border-bottom: none;
+        border-radius: 12px 12px 0 0;
+      }
+
+      .modal-body-custom {
+        padding: 2rem;
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+
+      .modal-footer-custom {
+        padding: 1.5rem 2rem;
+        border-top: 1px solid #eee;
+        background-color: #f8f9fa;
+        border-radius: 0 0 12px 12px;
+      }
+
+      .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .avatar-img {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #dee2e6;
+      }
+
+      .role-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .role-admin {
+        background-color: rgba(231, 76, 60, 0.1);
+        color: #e74c3c;
+        border: 1px solid rgba(231, 76, 60, 0.2);
+      }
+
+      .role-employee {
+        background-color: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+        border: 1px solid rgba(52, 152, 219, 0.2);
+      }
+
+      .role-manager {
+        background-color: rgba(39, 174, 96, 0.1);
+        color: #27ae60;
+        border: 1px solid rgba(39, 174, 96, 0.2);
+      }
+
+      .search-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        margin-bottom: 1.5rem;
+      }
+
+      .btn-gradient-primary {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border: none;
+        color: white;
+        transition: all 0.3s ease;
+      }
+
+      .btn-gradient-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        color: white;
+      }
+
+      .btn-gradient-success {
+        background: linear-gradient(135deg, #56ab2f, #a8e6cf);
+        border: none;
+        color: white;
+      }
+
+      .btn-gradient-success:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(86, 171, 47, 0.3);
+        color: white;
+      }
+
+      .btn-gradient-danger {
+        background: linear-gradient(135deg, #ff416c, #ff4b2b);
+        border: none;
+        color: white;
+      }
+
+      .btn-gradient-danger:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(255, 65, 108, 0.3);
+        color: white;
+      }
+
+      .card-modern {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        transition: all 0.3s ease;
+      }
+
+      .card-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+      }
+
+      .table-modern {
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
+      }
+
+      .table-modern thead th {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border: none;
+        padding: 1rem;
+        font-weight: 600;
+        color: #2c3e50;
+      }
+
+      .table-modern tbody td {
+        padding: 1rem;
+        border: none;
+        border-bottom: 1px solid #eee;
+        vertical-align: middle;
+      }
+
+      .table-modern tbody tr:hover {
+        background-color: rgba(52, 152, 219, 0.05);
+      }
+
+      .alert-modern {
+        border: none;
+        border-radius: 8px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+    </style>
+  </head>
+
+  <body class="bg-light">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2><i class="fas fa-crown me-2"></i>ADMIN</h2>
+      </div>
+      <div class="sidebar-nav">
+        <ul>
+          <li>
+            <a th:href="@{/admin}"
+              ><i class="fas fa-tachometer-alt"></i>Dashboard</a
+            >
+          </li>
+          <li>
+            <a th:href="@{/admin/foods}"
+              ><i class="fas fa-utensils"></i>Quản lý sản phẩm</a
+            >
+          </li>
+          <li>
+            <a th:href="@{/admin/tables}"
+              ><i class="fas fa-table"></i>Quản lý bàn</a
+            >
+          </li>
+          <li>
+            <a th:href="@{/admin/users}" class="active"
+              ><i class="fas fa-users"></i>Quản lý nhân viên</a
+            >
+          </li>
+          <li>
+            <a th:href="@{/admin/orders}"
+              ><i class="fas fa-receipt"></i>Quản lý hoá đơn</a
+            >
+          </li>
+          <li>
+            <a th:href="@{/admin/reports}" >
+              <i class="fas fa-chart-bar"></i>Báo cáo kinh doanh
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="main-content" x-data="userManagement()">
+      <div class="top-navbar">
+        <h1 class="page-title">
+          <i class="fas fa-users me-3"></i>Quản Lý Nhân Viên
+        </h1>
+        <div class="user-actions">
+          <div class="user-info">
+            <span th:text="${loggedInUser.fullName}">Admin</span>
+            <i class="fas fa-user-circle ms-2"></i>
+          </div>
+          <form th:action="@{/logout}" method="post" class="d-inline">
+            <button type="submit" class="btn btn-outline-danger btn-sm">
+              <i class="fas fa-sign-out-alt me-1"></i>Đăng xuất
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="content-wrapper">
+        <div
+          x-show="alertMessage.show"
+          :class="alertMessage.type === 'success' ? 'alert alert-success alert-modern' : 'alert alert-danger alert-modern'"
+          x-text="alertMessage.text"
+          x-transition.opacity
+        ></div>
+
+        <div class="search-container">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold text-secondary">
+                <i class="fas fa-search me-2"></i>Tìm kiếm nhân viên
+              </label>
+              <input
+                type="text"
+                x-model="searchQuery"
+                @input.debounce.300ms="searchUsers()"
+                class="form-control form-control-lg"
+                placeholder="Nhập tên đăng nhập hoặc họ tên..."
+              />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold text-secondary">
+                <i class="fas fa-filter me-2"></i>Lọc theo vai trò
+              </label>
+              <select
+                x-model="selectedRole"
+                @change="filterByRole()"
+                class="form-select form-select-lg"
+              >
+                <option value="">Tất cả vai trò</option>
+                <template x-for="role in availableRoles" :key="role">
+                  <option :value="role" x-text="role"></option>
+                </template>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <button
+                class="btn btn-outline-secondary btn-lg w-100"
+                @click="clearFilters()"
+              >
+                <i class="fas fa-times me-2"></i>Xóa bộ lọc
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="main-card card-modern">
+          <div class="card-header-custom">
+            <h3 class="mb-0">
+              <i class="fas fa-list me-2"></i>Danh sách Nhân viên
+            </h3>
+            <button class="btn btn-gradient-primary" @click="openCreateModal()">
+              <i class="fas fa-plus me-2"></i>Thêm Nhân viên mới
+            </button>
+          </div>
+
+          <div class="card-body p-0">
+            <div x-show="loading" class="loading-container">
+              <div class="loading-spinner"></div>
+              <p class="mt-3 mb-0">Đang tải dữ liệu...</p>
+            </div>
+
+            <div
+              x-show="error"
+              class="alert alert-danger alert-modern m-3"
+              x-text="error"
+            ></div>
+
+            <div x-show="!loading && !error" class="table-container">
+              <table class="table table-modern mb-0">
+                <thead>
+                  <tr>
+                    <th width="5%">STT</th>
+                    <th width="10%">Avatar</th>
+                    <th width="20%">Tên đăng nhập</th>
+                    <th width="25%">Họ và tên</th>
+                    <th width="15%">Vai trò</th>
+                    <th width="25%">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template
+                    x-for="(user, index) in filteredUsers"
+                    :key="user.userID"
+                  >
+                    <tr>
+                      <td>
+                        <span
+                          class="badge bg-light text-dark"
+                          x-text="index + 1"
+                        ></span>
+                      </td>
+                      <td>
+                        <img
+                          :src="user.avatar || '/images/default-avatar.png'"
+                          class="avatar-img"
+                          alt="Avatar"
+                          onerror="this.src='/images/default-avatar.png'"
+                        />
+                      </td>
+                      <td>
+                        <div class="fw-semibold" x-text="user.username"></div>
+                      </td>
+                      <td>
+                        <div
+                          class="fw-semibold text-primary"
+                          x-text="user.fullName"
+                        ></div>
+                      </td>
+                      <td>
+                        <span
+                          class="role-badge"
+                          :class="`role-${user.role?.toLowerCase() || 'employee'}`"
+                          x-text="user.role"
+                        ></span>
+                      </td>
+                      <td>
+                        <div class="action-buttons">
+                          <button
+                            class="btn btn-gradient-success btn-sm me-2"
+                            @click="openEditModal(user)"
+                          >
+                            <i class="fas fa-edit me-1"></i>Sửa
+                          </button>
+                          <button
+                            x-show="user.userID !== currentUserId"
+                            class="btn btn-gradient-danger btn-sm"
+                            @click="deleteUser(user.userID, user.fullName)"
+                          >
+                            <i class="fas fa-trash me-1"></i>Xóa
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+
+              <div x-show="filteredUsers.length === 0" class="empty-state">
+                <i class="fas fa-users fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">Không tìm thấy nhân viên nào</h5>
+                <p class="text-muted">
+                  Thử thay đổi bộ lọc hoặc tìm kiếm với từ khóa khác
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" x-show="showCreateModal" x-transition>
+        <div class="modal-content-custom">
+          <div class="modal-header-custom">
+            <h5 class="mb-0">
+              <i class="fas fa-user-plus me-2"></i>Thêm nhân viên mới
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              @click="closeCreateModal()"
+            ></button>
+          </div>
+          <form @submit.prevent="createUser()">
+            <div class="modal-body-custom">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold"
+                    >Tên đăng nhập <span class="text-danger">*</span></label
+                  >
+                  <input
+                    type="text"
+                    x-model="createForm.username"
+                    class="form-control"
+                    required
+                  />
+                  <div
+                    x-show="createForm.errors.username"
+                    x-text="createForm.errors.username"
+                    class="text-danger mt-1 small"
+                  ></div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold"
+                    >Mật khẩu <span class="text-danger">*</span></label
+                  >
+                  <input
+                    type="password"
+                    x-model="createForm.passwordHash"
+                    class="form-control"
+                    required
+                  />
+                  <div
+                    x-show="createForm.errors.passwordHash"
+                    x-text="createForm.errors.passwordHash"
+                    class="text-danger mt-1 small"
+                  ></div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold"
+                    >Họ và tên <span class="text-danger">*</span></label
+                  >
+                  <input
+                    type="text"
+                    x-model="createForm.fullName"
+                    class="form-control"
+                    required
+                  />
+                  <div
+                    x-show="createForm.errors.fullName"
+                    x-text="createForm.errors.fullName"
+                    class="text-danger mt-1 small"
+                  ></div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold"
+                    >Vai trò <span class="text-danger">*</span></label
+                  >
+                  <select
+                    x-model="createForm.role"
+                    class="form-select"
+                    required
+                  >
+                    <option value="">Chọn vai trò</option>
+                    <template x-for="role in availableRoles" :key="role">
+                      <option :value="role" x-text="role"></option>
+                    </template>
+                  </select>
+                  <div
+                    x-show="createForm.errors.role"
+                    x-text="createForm.errors.role"
+                    class="text-danger mt-1 small"
+                  ></div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">URL Avatar</label>
+                  <input
+                    type="url"
+                    x-model="createForm.avatar"
+                    class="form-control"
+                    placeholder="https://example.com/avatar.jpg"
+                  />
+                  <div
+                    x-show="createForm.errors.avatar"
+                    x-text="createForm.errors.avatar"
+                    class="text-danger mt-1 small"
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer-custom">
+              <button
+                type="button"
+                class="btn btn-secondary me-2"
+                @click="closeCreateModal()"
+                :disabled="submittingCreate"
+              >
+                <i class="fas fa-times me-1"></i>Hủy
+              </button>
+              <button
+                type="submit"
+                class="btn btn-gradient-primary"
+                :disabled="submittingCreate"
+              >
+                <span x-show="!submittingCreate"
+                  ><i class="fas fa-save me-1"></i>Thêm nhân viên</span
+                >
+                <span x-show="submittingCreate">
+                  <div class="loading-spinner me-2"></div>
+                  Đang thêm...
+                </span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="modal-overlay" x-show="showEditModal" x-transition>
+        <div class="modal-content-custom">
+          <div class="modal-header-custom">
+            <h5 class="mb-0">
+              <i class="fas fa-user-edit me-2"></i>Sửa thông tin nhân viên
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              @click="closeEditModal()"
+            ></button>
+          </div>
+          <form @submit.prevent="updateUser()">
+            <div class="modal-body-custom">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold"
+                    >Tên đăng nhập <span class="text-danger">*</span></label
+                  >
+                  <input
+                    type="text"
+                    x-model="editForm.username"
+                    class="form-control"
+                    required
+                  />
+                  <div
+                    x-show="editForm.errors.username"
+                    x-text="editForm.errors.username"
+                    class="text-danger mt-1 small"
+                  ></div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Mật khẩu mới</label>
+                  <input
+                    type="password"
+                    x-model="editForm.passwordHash"
+                    class="form-control"
+                    placeholder="Để trống nếu không đổi"
+                  />
+                  <div
+                    x-show="editForm.errors.passwordHash"
+                    x-text="editForm.errors.passwordHash"
+                    class="text-danger mt-1 small"
+                  ></div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold"
+                    >Họ và tên <span class="text-danger">*</span></label
+                  >
+                  <input
+                    type="text"
+                    x-model="editForm.fullName"
+                    class="form-control"
+                    required
+                  />
+                  <div
+                    x-show="editForm.errors.fullName"
+                    x-text="editForm.errors.fullName"
+                    class="text-danger mt-1 small"
+                  ></div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold"
+                    >Vai trò <span class="text-danger">*</span></label
+                  >
+                  <select x-model="editForm.role" class="form-select" required>
+                    <option value="">Chọn vai trò</option>
+                    <template x-for="role in availableRoles" :key="role">
+                      <option :value="role" x-text="role"></option>
+                    </template>
+                  </select>
+                  <div
+                    x-show="editForm.errors.role"
+                    x-text="editForm.errors.role"
+                    class="text-danger mt-1 small"
+                  ></div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">URL Avatar</label>
+                  <input
+                    type="url"
+                    x-model="editForm.avatar"
+                    class="form-control"
+                  />
+                  <div
+                    x-show="editForm.errors.avatar"
+                    x-text="editForm.errors.avatar"
+                    class="text-danger mt-1 small"
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer-custom">
+              <button
+                type="button"
+                class="btn btn-secondary me-2"
+                @click="closeEditModal()"
+                :disabled="submittingEdit"
+              >
+                <i class="fas fa-times me-1"></i>Hủy
+              </button>
+              <button
+                type="submit"
+                class="btn btn-gradient-primary"
+                :disabled="submittingEdit"
+              >
+                <span x-show="!submittingEdit"
+                  ><i class="fas fa-save me-1"></i>Cập nhật</span
+                >
+                <span x-show="submittingEdit">
+                  <div class="loading-spinner me-2"></div>
+                  Đang cập nhật...
+                </span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function userManagement() {
+        return {
+          users: [],
+          filteredUsers: [],
+          availableRoles: [],
+          loading: true,
+          error: null,
+          searchQuery: "",
+          selectedRole: "",
+          currentUserId: null,
+          showCreateModal: false,
+          showEditModal: false,
+          submittingCreate: false,
+          submittingEdit: false,
+          alertMessage: { show: false, type: "", text: "" },
+          createForm: {
+            username: "",
+            passwordHash: "",
+            fullName: "",
+            role: "",
+            avatar: "",
+            errors: {},
+          },
+          editForm: {
+            id: null,
+            username: "",
+            passwordHash: "",
+            fullName: "",
+            role: "",
+            avatar: "",
+            errors: {},
+          },
+
+          async init() {
+            const loggedInUserElement = document.querySelector(
+              '[th\\:text="${loggedInUser.userID}"]'
+            );
+            if (loggedInUserElement) {
+              this.currentUserId = parseInt(loggedInUserElement.textContent);
+            }
+            await Promise.all([this.loadUsers(), this.loadRoles()]);
+          },
+
+          async loadUsers() {
+            try {
+              this.loading = true;
+              this.error = null;
+              const response = await axios.get("/api/admin/users");
+              if (response.data.success) {
+                this.users = response.data.data;
+                this.filteredUsers = [...this.users];
+              } else {
+                this.error =
+                  response.data.message || "Không thể tải danh sách nhân viên";
+              }
+            } catch (error) {
+              console.error("Error loading users:", error);
+              this.error = "Lỗi kết nối. Vui lòng thử lại sau.";
+            } finally {
+              this.loading = false;
+            }
+          },
+
+          async loadRoles() {
+            try {
+              const response = await axios.get("/api/admin/users/roles");
+              if (response.data.success) {
+                this.availableRoles = response.data.data;
+              }
+            } catch (error) {
+              console.error("Error loading roles:", error);
+            }
+          },
+
+          async searchUsers() {
+            if (!this.searchQuery.trim()) {
+              this.filteredUsers = [...this.users];
+              return;
+            }
+            try {
+              const response = await axios.get(
+                `/api/admin/users/search?q=${encodeURIComponent(
+                  this.searchQuery
+                )}`
+              );
+              if (response.data.success) {
+                this.filteredUsers = response.data.data;
+              }
+            } catch (error) {
+              console.error("Error searching users:", error);
+            }
+          },
+
+          async filterByRole() {
+            if (!this.selectedRole) {
+              this.filteredUsers = [...this.users];
+              return;
+            }
+            try {
+              const response = await axios.get(
+                `/api/admin/users/role/${this.selectedRole}`
+              );
+              if (response.data.success) {
+                this.filteredUsers = response.data.data;
+              }
+            } catch (error) {
+              console.error("Error filtering by role:", error);
+            }
+          },
+
+          clearFilters() {
+            this.searchQuery = "";
+            this.selectedRole = "";
+            this.filteredUsers = [...this.users];
+          },
+
+          openCreateModal() {
+            this.createForm = {
+              username: "",
+              passwordHash: "",
+              fullName: "",
+              role: "",
+              avatar: "",
+              errors: {},
+            };
+            this.showCreateModal = true;
+          },
+
+          closeCreateModal() {
+            this.showCreateModal = false;
+            this.createForm = {
+              username: "",
+              passwordHash: "",
+              fullName: "",
+              role: "",
+              avatar: "",
+              errors: {},
+            };
+          },
+
+          async createUser() {
+            if (this.submittingCreate) return;
+            try {
+              this.submittingCreate = true;
+              this.createForm.errors = {};
+              const response = await axios.post("/api/admin/users", {
+                username: this.createForm.username,
+                passwordHash: this.createForm.passwordHash,
+                fullName: this.createForm.fullName,
+                role: this.createForm.role,
+                avatar: this.createForm.avatar || null,
+              });
+              if (response.data.success) {
+                this.closeCreateModal();
+                this.showAlert("success", "Thêm nhân viên thành công!");
+                await this.loadUsers();
+              } else {
+                this.handleApiErrors(response.data, "createForm");
+              }
+            } catch (error) {
+              console.error("Error creating user:", error);
+              if (error.response?.data?.errors) {
+                this.createForm.errors = error.response.data.errors;
+              }
+              this.showAlert(
+                "error",
+                error.response?.data?.message ||
+                  "Lỗi kết nối. Vui lòng thử lại sau."
+              );
+            } finally {
+              this.submittingCreate = false;
+            }
+          },
+
+          openEditModal(user) {
+            this.editForm = {
+              id: user.userID,
+              username: user.username,
+              passwordHash: "",
+              fullName: user.fullName,
+              role: user.role,
+              avatar: user.avatar || "",
+              errors: {},
+            };
+            this.showEditModal = true;
+          },
+
+          closeEditModal() {
+            this.showEditModal = false;
+            this.editForm = {
+              id: null,
+              username: "",
+              passwordHash: "",
+              fullName: "",
+              role: "",
+              avatar: "",
+              errors: {},
+            };
+          },
+
+          async updateUser() {
+            if (this.submittingEdit) return;
+            try {
+              this.submittingEdit = true;
+              this.editForm.errors = {};
+              const updateData = {
+                username: this.editForm.username,
+                fullName: this.editForm.fullName,
+                role: this.editForm.role,
+                avatar: this.editForm.avatar || null,
+              };
+              if (this.editForm.passwordHash) {
+                updateData.passwordHash = this.editForm.passwordHash;
+              }
+              const response = await axios.put(
+                `/api/admin/users/${this.editForm.id}`,
+                updateData
+              );
+              if (response.data.success) {
+                this.closeEditModal();
+                this.showAlert("success", "Cập nhật nhân viên thành công!");
+                await this.loadUsers();
+              } else {
+                this.handleApiErrors(response.data, "editForm");
+              }
+            } catch (error) {
+              console.error("Error updating user:", error);
+              if (error.response?.data?.errors) {
+                this.editForm.errors = error.response.data.errors;
+              }
+              this.showAlert(
+                "error",
+                error.response?.data?.message ||
+                  "Lỗi kết nối. Vui lòng thử lại sau."
+              );
+            } finally {
+              this.submittingEdit = false;
+            }
+          },
+
+          async deleteUser(userId, userName) {
+            if (!confirm(`Bạn có chắc chắn muốn xóa nhân viên "${userName}"?`))
+              return;
+            try {
+              const response = await axios.delete(`/api/admin/users/${userId}`);
+              if (response.data.success) {
+                this.users = this.users.filter((u) => u.userID !== userId);
+                this.filteredUsers = this.filteredUsers.filter(
+                  (u) => u.userID !== userId
+                );
+                this.showAlert("success", "Xóa nhân viên thành công!");
+              } else {
+                this.showAlert(
+                  "error",
+                  response.data.message || "Không thể xóa nhân viên"
+                );
+              }
+            } catch (error) {
+              console.error("Error deleting user:", error);
+              this.showAlert("error", "Lỗi kết nối. Vui lòng thử lại sau.");
+            }
+          },
+
+          handleApiErrors(data, formName) {
+            if (data.errors) {
+              this[formName].errors = data.errors;
+            }
+            this.showAlert(
+              "error",
+              data.message || "Có lỗi xảy ra khi xử lý dữ liệu"
+            );
+          },
+
+          showAlert(type, text) {
+            this.alertMessage = { show: true, type: type, text: text };
+            setTimeout(() => {
+              this.alertMessage.show = false;
+            }, 3000);
+          },
+        };
+      }
+    </script>
+  </body>
+</html>
