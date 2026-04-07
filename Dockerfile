@@ -4,7 +4,7 @@ WORKDIR /app
 COPY . .
 RUN mvn clean package -DskipTests
 
-# Runtime stage
+
 FROM eclipse-temurin:17-alpine
 WORKDIR /app
 COPY --from=builder /app/target/FoodHKD-0.0.1-SNAPSHOT.jar app.jar
