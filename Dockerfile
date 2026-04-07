@@ -1,4 +1,4 @@
-FROM openjdk:17-slim
+FROM eclipse-temurin:17-jre-slim
 WORKDIR /app
 COPY . .
 RUN apt-get update && apt-get install -y dos2unix
