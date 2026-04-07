@@ -6,4 +6,4 @@ services:
     buildCommand: ./mvnw clean package -DskipTests
     startCommand: java -jar target/FoodHKD-0.0.1-SNAPSHOT.jar
     envVars:
-      SPRING_PROFILES_ACTIVE: ui
+      SPRING_PROFILES_ACTIVE: h2
